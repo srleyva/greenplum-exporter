@@ -10,6 +10,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"os"
 )
 
 const (
@@ -94,10 +95,33 @@ func (e *Exporter) CheckChangeTracking() {
 	}
 }
 
+// Checks if master or standby
+func (e *Exporter) IsMaster() bool {
+	db := e.newDB()
+	defer db.Close()
+
+	var role string
+	host, _ := os.Hostname()
+	err := db.QueryRow(fmt.Sprintf("select role from gp_segment_configuration where address='%s';", host)).Scan(&role)
+	if err != nil {
+		log.Errorf("err: %s", err)
+	}
+	return role == "p"
+}
+
 func main() {
-	http.Handle("/metrics", promhttp.Handler())
-	log.Info("Serving metrics on port :8080")
 	export := NewExporter(5432, "localhost", "gpadmin", "", "postgres")
+	http.Handle("/metrics", promhttp.Handler())
+	http.HandleFunc("/ismaster", func(w http.ResponseWriter, r *http.Request) {
+		if export.IsMaster() {
+			w.WriteHeader(200)
+			w.Write([]byte("I am master"))
+		} else {
+			w.WriteHeader(400)
+			w.Write([]byte("I am not master"))
+		}
+	})
+	log.Info("Serving metrics on port :8080")
 	go export.Run()
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
