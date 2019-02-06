@@ -42,11 +42,12 @@ func NewExporter(port int, host, username, password, database string) *Exporter 
 	return &Exporter{host, port, username, password, database, downsegs, changesegs}
 }
 
+// Run performs all the scrapes every 5 minutes
 func (e *Exporter) Run() {
 	for {
-		time.Sleep(5 * time.Second)
 		e.CheckDown()
 		e.CheckChangeTracking()
+		time.Sleep(5 * time.Minute)
 	}
 }
 
@@ -60,21 +61,7 @@ func (e *Exporter) newDB() *sql.DB {
 	return db
 }
 
-//func (e *Exporter) RunQuery(query string) {
-//db := e.newDB()
-//defer db.Close()
-
-//var metric float64
-//err := db.QueryRow(query).Scan(&metric)
-//if err != nil {
-//e.DownSegs.Set(-100)
-//log.Errorf("Err: %s", err)
-//} else {
-
-//e.DownSegs.Set(down)
-//}
-//}
-
+// CheckDown will check if any segments are down
 func (e *Exporter) CheckDown() {
 	db := e.newDB()
 	defer db.Close()
@@ -91,6 +78,7 @@ func (e *Exporter) CheckDown() {
 	}
 }
 
+// CheckChangeTracking will check if mirrors are tracking changes
 func (e *Exporter) CheckChangeTracking() {
 	db := e.newDB()
 	defer db.Close()
