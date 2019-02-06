@@ -39,6 +39,7 @@ func NewExporter(port int, host, username, password, database string) *Exporter 
 		Namespace: "staq", Name: "change_segments", Help: "Shows the number of mirror segments in our change tracking indicating down segment"})
 
 	prometheus.MustRegister(downsegs)
+	prometheus.MustRegister(changesegs)
 	return &Exporter{host, port, username, password, database, downsegs, changesegs}
 }
 
@@ -55,7 +56,7 @@ func (e *Exporter) newDB() *sql.DB {
 	connStr := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", e.username, e.password, e.host, e.database)
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		e.DownSegs.Set(-100)
+		e.DownSegs.Set(1000)
 		log.Errorf("Trouble connecting to the DB: %v", err)
 	}
 	return db
@@ -68,9 +69,8 @@ func (e *Exporter) CheckDown() {
 
 	var down float64
 	err := db.QueryRow(downQuery).Scan(&down)
-	log.Infof("Downsegs: %f", down)
 	if err != nil {
-		e.DownSegs.Set(-100)
+		e.DownSegs.Set(1000)
 		log.Errorf("Err: %s", err)
 	} else {
 
@@ -86,7 +86,7 @@ func (e *Exporter) CheckChangeTracking() {
 	var change float64
 	err := db.QueryRow(changeQuery).Scan(&change)
 	if err != nil {
-		e.ChangeSegs.Set(-100)
+		e.ChangeSegs.Set(1000)
 		log.Errorf("Err: %s", err)
 	} else {
 
